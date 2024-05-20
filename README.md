@@ -1,6 +1,6 @@
 This repository showcases how to visualize and analyze fuel consumption and log book data using R. It leverages the dplyr package for data manipulation and Quarto for creating dynamic and interactive notebooks.
 
-#Key Features
+Key Features
 
 Data Manipulation
 
