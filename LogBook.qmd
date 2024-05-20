@@ -1,0 +1,668 @@
+---
+title: "Project Eduvos"
+format: pdf
+editor: visual
+---
+
+## Importing Data
+
+```{r}
+#install.packages("dplyr")
+library("dplyr")
+```
+
+```{r}
+log_book_data <- read.csv("C:/Users/aryan/Downloads/logbook_assignment1.csv")
+```
+
+## Question 1
+
+## 1.1(a)
+
+```{r}
+#Removing rows based on any empty date_fueled values
+vector_truth <- log_book_data$date_fueled == "" | is.na(log_book_data$date_fueled)
+vector_truth[1:10]
+log_book_data$date_fueled[1:10]
+```
+
+```{r}
+log_book_data_v2 <- log_book_data[!vector_truth, ]
+
+head(log_book_data_v2$date_fueled)
+```
+
+### Removing Non Date values from "Date Fueled" Column
+
+```{r}
+
+ date_regex <- "^\\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\\s\\d{1,2}\\s\\d{4}\\b$"
+ log_book_data_v3 <- log_book_data_v2[grepl(date_regex,log_book_data_v2$date_fueled),]
+```
+
+```{r}
+
+head(log_book_data_v3,n = 10)
+```
+
+### Converting DATE_FUELED, DATE_CAPTURED FROM String to Date TYPE.
+
+```{r}
+log_book_data_v3$date_fueled <- as.Date(log_book_data_v3$date_fueled,format="%B %d %Y")
+log_book_data_v3$date_captured <- as.Date(log_book_data_v3$date_captured,format="%B %d %Y")
+
+head(log_book_data_v3, n=5) 
+```
+
+```{r}
+
+print(paste("Column date_fueled class type :" ,class(log_book_data_v3$date_fueled)))
+print(paste("Column date_captured class type :" ,class(log_book_data_v3$date_captured)))
+```
+
+### Removing empty values from odometer,gallons, cost_per_gallon and total_spent columns
+
+```{r}
+log_book_data_v4 <- log_book_data_v3[!(log_book_data_v3$odometer == "" | log_book_data_v3$gallons == "" | log_book_data_v3$cost_per_gallon == "" | log_book_data_v3$total_spent == "" | log_book_data_v3$mpg == ""),]
+
+head(log_book_data_v4,n = 10)
+```
+
+### Converting odometer,gallons, cost_per_gallon and total_spent columns into numeric columns.
+
+```{r}
+log_book_data_v4$odometer = as.numeric(gsub(x = log_book_data_v4$odometer,pattern = ",",replacement = ""))  
+
+log_book_data_v4$gallons = as.numeric(gsub(x = log_book_data_v4$gallons,pattern = ",",replacement = "")) 
+
+log_book_data_v4$mpg = as.numeric(gsub(x = log_book_data_v4$mpg,pattern = ",",replacement = ""))
+
+log_book_data_v4$miles = as.numeric(gsub(x = log_book_data_v4$miles,pattern = ",",replacement = ""))
+
+
+head(log_book_data_v4,n = 20)
+```
+
+### Statistical Summary for log_book_data.
+
+```{r}
+
+str(log_book_data_v4)
+```
+
+### Filling Miles Column, as there are many NA Values.
+
+### MPG = miles/gallon is the formula where we can extract miles.
+
+### miles = MPG \* gallon
+
+```{r}
+
+log_book_data_v5 = log_book_data_v4
+head(log_book_data_v5, n =20)
+```
+
+### Extracting Miles
+
+```{r}
+log_book_data_v5$miles = log_book_data_v5$mpg * log_book_data_v5$gallons
+head(log_book_data_v5, n = 20)
+```
+
+### Extracting Currencies
+
+### Extracting currencies with the "\$"
+
+```{r}
+
+log_book_with_dollar = log_book_data_v5[(grepl("\\$", log_book_data_v5$total_spent)),]
+head(log_book_with_dollar)
+```
+
+### Extracting currencies with no "\$"
+
+```{r}
+
+log_book_with_no_dollar = log_book_data_v5[!(grepl("\\$", log_book_data_v5$total_spent)),]
+
+head(log_book_with_no_dollar)
+```
+
+### Number of countries in the \$-currency
+
+```{r}
+
+levels(factor(sub("[0-9].*$", "", log_book_with_dollar$total_spent)))
+```
+
+```{r}
+length(levels(factor(sub("[0-9].*$", "", log_book_with_dollar$total_spent))))
+```
+
+### Number of countries in the non \$-currency
+
+```{r}
+levels(factor(sub("[0-9].*$", "", log_book_with_no_dollar$total_spent)))
+```
+
+```{r}
+
+length(levels(factor(sub("[0-9].*$", "", log_book_with_no_dollar$total_spent))))
+```
+
+```         
+```
+
+### There are a total of 121 unique countries in the log book dataset. We will be dealing with these currency conversion on the top 5 most commonly used currency which will be dealt on the following questions
+
+```{r}
+length(levels(factor(sub("[0-9].*$", "", log_book_with_dollar$cost_per_gallon)))) + length(levels(factor(sub("[0-9].*$", "", log_book_with_no_dollar$total_spent))))
+```
+
+## Question 1
+
+### 1.1(b)
+
+### The following plots will have no scaling to them, As we need to further clean, group, re-arrange and analyze them accordingly with the questions associated with them.
+
+```{r}
+library(ggplot2)
+x_values = (log_book_data_v5$mpg - mean(log_book_data_v5$mpg))/ sd(log_book_data_v5$mpg)
+
+hist(x_values,xlab = "Z Score for MPG", probability = TRUE,main =  "Histogram for Miles per gallon. ",) 
+```
+
+```{r}
+scatterplot_matrix <- ggplot(log_book_data_v5, aes(x = date_fueled, y = mpg)) +
+  geom_point() +
+  ggtitle("Scatterplot Matrix") +
+  theme_minimal() +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y", limits = as.Date(c("1969-01-01", "2024-12-31"))) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+scatterplot_matrix
+```
+
+```{r}
+hist_miles <- ggplot(log_book_data_v5, aes(x = miles)) +
+  geom_histogram(binwidth = 20, fill = "skyblue", color = "black") +
+  ggtitle("Miles Distribution") +
+  xlab("Miles")
+
+hist_miles
+```
+
+```{r}
+hist_gallons <- ggplot(log_book_data_v5, aes(x = gallons)) +
+  geom_histogram(binwidth = 2, fill = "lightgreen", color = "black") +
+  ggtitle("Gallons Distribution") +
+  xlab("Gallons")
+
+hist_gallons
+
+```
+
+## Question 2
+
+### 2.2. Extract the top 5 countries (currencies) from the data and remove any outliers
+
+**The top 5 currencies from the data are:**
+
+```{r}
+
+dollar_currency_data <- data.frame(
+  Currency_Code = c("$", "$U", "AR$", "AU$", "Bds$", "BN$", "BS$", "BZ$", "C$", "CA$", "CL$", "CO$", "CU$", "CV$", "EC$", "GY$", "HK$", "J$", "KY$", "L$", "MOP$", "N$", "NT$", "NZ$", "R$", "RD$", "S$", "SR$", "TT$"),
+  Country = c("United States", "Uruguay", "Argentina", "Australia", "Barbados", "Brunei", "Bahamas", "Belize", "Canada", "Canada", "Chile", "Colombia", "Cuba", "Cape Verde", "Ecuador", "Guyana", "Hong Kong", "Jamaica", "Cayman Islands", "Liberia", "Macau", "Namibia", "Taiwan", "New Zealand", "Brazil", "Dominican Republic", "Singapore", "Suriname", "Trinidad and Tobago"),
+  Currency = c("US Dollar", "Uruguayan Peso", "Argentine Peso", "Australian Dollar", "Barbadian Dollar", "Brunei Dollar", "Bahamian Dollar", "Belize Dollar", "Canadian Dollar", "Canadian Dollar", "Chilean Peso", "Colombian Peso", "Cuban Peso", "Cape Verdean Escudo", "Ecuadorian Sucre", "Guyanese Dollar", "Hong Kong Dollar", "Jamaican Dollar", "Cayman Islands Dollar", "Liberian Dollar", "Macanese Pataca", "Namibian Dollar", "New Taiwan Dollar", "New Zealand Dollar", "Brazilian Real", "Dominican Peso", "Singapore Dollar", "Surinamese Dollar", "Trinidad and Tobago Dollar")
+)
+
+
+head(dollar_currency_data)
+```
+
+```{r}
+
+# Create dataframe from currency information
+non_dollar_currency_data <- data.frame(
+  Currency_Code = c(
+    "£", "¥", "₱", "₦", "₩", "₮", "€", "฿", "₡", "₲", "₴", "₪", "₫", "AED", "Af", "ALL", "AMD", "B/.", "BD", "BGN", 
+    "Br", "Bs", "Bs.F.", "BWP", "BYN", "CFA", "CFPF", "CN¥", "DA", "din.", "Dkr", "DT", "FCFA", "Fr.", "Ft", "GEL", "GH₵", 
+    "GTQ", "HNL", "Ikr", "IQD", "IRR", "JD", "Kč", "KD", "KGS", "KHR", "KM", "kn", "Ksh", "Kz", "KZT", "LB£", "LE", "MAD", 
+    "man.", "MDL", "MGA", "MKD", "MMK", "MTn", "MURs", "MXN", "NAf.", "Nkr", "NPRs", "OMR", "PKRs", "QR", "R", "RM", "RON", 
+    "Rp", "Rs", "RUB", "RWF", "S/.", "SH£", "Skr", "SLRs", "SR", "SY£", "Tk", "TL", "TMT", "TSh", "USh", "VT", "YR", "zł", "ZMW", "ZWL"
+  ),
+  Currency = c(
+    "British Pound", "Japanese Yen", "Philippine Peso", "Nigerian Naira", 
+    "South Korean Won", "Mongolian Tugrik", "Euro", "Thai Baht", 
+    "Costa Rican Colón", "Paraguayan Guarani", "Ukrainian Hryvnia", "Israeli New Shekel", 
+    "Vietnamese Dong", "UAE Dirham", "Afghan Afghani", "Albanian Lek", 
+    "Armenian Dram", "Panamanian Balboa", "Bahraini Dinar", "Bulgarian Lev", 
+    "Brazilian Real", "Bolivian Boliviano", "Venezuelan Bolivar", "Botswana Pula", 
+    "Belarusian Ruble", "CFA Franc", "CFP Franc", 
+    "Chinese Yuan", "Algerian Dinar", "Serbian Dinar", "Danish Krone", "Tunisian Dinar", 
+    "CFA Franc", "Swiss Franc", "Hungarian Forint", "Georgian Lari", 
+    "Ghanaian Cedi", "Guatemalan Quetzal", "Honduran Lempira", "Icelandic Krona", 
+    "Iraqi Dinar", "Iranian Rial", "Jordanian Dinar", "Czech Koruna", 
+    "Kuwaiti Dinar", "Kyrgyzstani Som", "Cambodian Riel", "Bosnia-Herzegovina Convertible Mark", 
+    "Croatian Kuna", "Kenyan Shilling", "Kazakhstani Tenge", "Kazakhstani Tenge", 
+    "Lebanese Pound", "Egyptian Pound", "Moroccan Dirham", "Algerian Dinar", 
+    "Moldovan Leu", "Malagasy Ariary", "Macedonian Denar", "Myanmar Kyat", 
+    "Mauritanian Ouguiya", "Mauritian Rupee", "Mexican Peso", 
+    "Netherlands Antillean Guilder", "Norwegian Krone", "Nepalese Rupee", 
+    "Omani Rial", "Pakistani Rupee", "Qatari Rial", "South African Rand", 
+    "Malaysian Ringgit", "Romanian Leu", "Indonesian Rupiah", "Indian Rupee", 
+    "Russian Ruble", "Rwandan Franc", "Peruvian Nuevo Sol", "Saint Helena Pound", 
+    "Swedish Krona", "Sri Lankan Rupee", "Surinamese Dollar", "Syrian Pound", 
+    "Bangladeshi Taka", "Turkish Lira", "Turkmenistani Manat", "Tanzanian Shilling", 
+    "Ugandan Shilling", "Vanuatu Vatu", "Yemeni Rial", "Polish Zloty", "Zambian Kwacha", 
+    "Zimbabwean Dollar"
+  ),
+  Country = c(
+    "United Kingdom", "Japan", "Philippines", "Nigeria", 
+    "South Korea", "Mongolia", "Eurozone", "Thailand", 
+    "Costa Rica", "Paraguay", "Ukraine", "Israel", 
+    "Vietnam", "United Arab Emirates", "Afghanistan", "Albania", 
+    "Armenia", "Panama", "Bahrain", "Bulgaria", 
+    "Brazil", "Bolivia", "Venezuela", "Botswana", 
+    "Belarus", "CFA", "CFP", 
+    "China", "Algeria", "Serbia", "Denmark", "Tunisia", 
+    "CFA", "Switzerland", "Hungary", "Georgia", 
+    "Ghana", "Guatemala", "Honduras", "Iceland", 
+    "Iraq", "Iran", "Jordan", "Czech Republic", 
+    "Kuwait", "Kyrgyzstan", "Cambodia", "Bosnia and Herzegovina", 
+    "Croatia", "Kenya", "Kazakhstan", "Kazakhstan", 
+    "Lebanon", "Egypt", "Morocco", "Algeria", 
+    "Moldova", "Madagascar", "North Macedonia", "Myanmar", 
+    "Mauritania", "Mauritius", "Mexico", 
+    "Netherlands Antilles", "Norway", "Nepal", 
+    "Oman", "Pakistan", "Qatar", "South Africa", 
+    "Malaysia", "Romania", "Indonesia", "India", 
+    "Russia", "Rwanda", "Peru", "Saint Helena", 
+    "Sweden", "Sri Lanka", "Suriname", "Syria", 
+    "Bangladesh", "Turkey", "Turkmenistan", "Tanzania", 
+    "Uganda", "Vanuatu", "Yemen", "Poland", "Zambia", 
+    "Zimbabwe"
+  )
+)
+
+non_dollar_currency_data
+```
+
+```{r}
+extract_currency_code <- function(string) {
+  return(gsub("[0-9.]", "", string))
+}
+```
+
+### Log Books with \$ code.
+
+```{r}
+
+log_book_with_dollar$currency_code <- sapply(log_book_with_dollar$total_spent,extract_currency_code)
+log_book_with_dollar$currency_code <-  gsub(",","",log_book_with_dollar$currency_code)
+table(log_book_with_dollar$currency_code)
+```
+
+### Log Book with no \$ code.
+
+```{r}
+
+log_book_with_no_dollar$currency_code <- sapply(log_book_with_no_dollar$total_spent,extract_currency_code)
+log_book_with_no_dollar$currency_code <-  gsub(",","",log_book_with_no_dollar$currency_code)
+table(log_book_with_no_dollar$currency_code)
+```
+
+### Top - 5 Countries Currency in the Data
+
+```{r}
+#library(dplyr)
+
+log_book_data_v5$currency_code <- sapply(log_book_data_v5$total_spent,extract_currency_code)
+log_book_data_v5$currency_code <-  gsub(",","",log_book_data_v5$currency_code)
+grouped_df <- as.data.frame(table(log_book_data_v5$currency_code))
+grouped_df %>% arrange(desc(Freq))
+```
+
+## Question 3
+
+### Question 3a.) Which car makes and models are the most popular?
+
+```{r}
+
+
+vehicle_info <- gsub("https://www.somewebsite.com/|/\\d+/\\d+$", "", log_book_data_v5$user_url)
+vehicle_info <- gsub("/", " ", vehicle_info)
+
+log_book_data_v5$vehicle_info <- vehicle_info
+vehicle_info[1:20]
+
+```
+
+### As you can see in the following output, that the Ford F-150 is the most popular car make and model in the dataset.
+
+```{r}
+
+log_book_data_v5 %>% group_by(vehicle_info) %>% count(vehicle_info) %>% arrange(desc(n))
+```
+
+## 3.b) Determine the differences in the cost of fuel per litre for each country in January 2022.
+
+### As the data is in gallons, we will calculate the cost of fuel per litre for the top-5 countries in the dataset.
+
+```{r}
+jan_2022_data <- log_book_data_v5 %>% 
+    filter(format(date_fueled, "%Y-%m") == "2022-01")
+jan_2022_data <- jan_2022_data %>% arrange(date_fueled) 
+head(jan_2022_data)  
+
+```
+
+```{r}
+
+currency_data <- rbind(dollar_currency_data,non_dollar_currency_data)
+currency_data <- currency_data[order(currency_data$Country),]
+row.names(currency_data) <- NULL
+names(currency_data)[1] = "currency_code"
+jan_2022_data = merge(jan_2022_data, currency_data, by = "currency_code")
+jan_2022_data
+```
+
+## Most Used Currency in Jan 2022
+
+```{r}
+curr_table <- table(jan_2022_data$currency_code) 
+sort(curr_table,decreasing = TRUE)
+```
+
+### As the top-5 countries account 91.8% of the dataset, we will be ignoring the other countries and focus on it basis of most used currency in the dataset.
+
+```{r}
+
+USA = jan_2022_data[jan_2022_data$currency_code == "$",]
+Britain = jan_2022_data[jan_2022_data$currency_code == "£",]
+Europe = jan_2022_data[jan_2022_data$currency_code == "€",]
+Canada = jan_2022_data[jan_2022_data$currency_code == "CA$",]
+South_Africa = jan_2022_data[jan_2022_data$currency_code == "R",]
+```
+
+### For example we filtered out Canada.
+
+```{r}
+jan_2022_data[jan_2022_data$currency_code == "CA$",]
+```
+
+### Cost_per_litre using (1 gallon = 3.78541 litres) among the top-5 currency used in Jan 2022 present in the dataset
+
+### The USD and Euro being similar as a result of similar exchange rates.
+
+### The GBP is suffering from the effects of Brexit and European-Ukraine relationship tensions.
+
+```{r}
+USA_numeric_values <- suppressWarnings(as.numeric(gsub("\\$","",USA$cost_per_gallon)))
+USA_numeric_values <- USA_numeric_values[!is.na(USA_numeric_values)]
+
+print(paste("The average cost_per_litre in USD is",mean(USA_numeric_values)/3.78541))
+
+Britain_numeric_values <- suppressWarnings(as.numeric(gsub("\\£","",Britain$cost_per_gallon)))
+Britain_numeric_values <- Britain_numeric_values[!is.na(Britain_numeric_values)]
+
+print(paste("The average cost_per_litre in GBP is",mean(Britain_numeric_values)/3.78541))
+
+Europe_numeric_values <- suppressWarnings(as.numeric(gsub("\\€","",Europe$cost_per_gallon)))
+Europe_numeric_values <- Europe_numeric_values[!is.na(Europe_numeric_values)]
+
+print(paste("The average cost_per_litre in Euro is",mean(Europe_numeric_values)/3.78541))
+
+Canada_numeric_values <- suppressWarnings(as.numeric(gsub("CA\\$","",Canada$cost_per_gallon)))
+Canada_numeric_values <- Canada_numeric_values[!is.na(Canada_numeric_values)]
+
+print(paste("The average cost_per_litre in Canadian Dollar is",mean(Canada_numeric_values)/3.78541))
+
+South_Africa_numeric_values <- suppressWarnings(as.numeric(gsub("\\R","",South_Africa$cost_per_gallon)))
+South_Africa_numeric_values <- South_Africa_numeric_values[!is.na(South_Africa_numeric_values)]
+
+print(paste("The average cost_per_litre in South African Rand is",mean(South_Africa_numeric_values)/3.78541))
+jan_2022_data = jan_2022_data[,names(jan_2022_data)[-c(11:15)]]
+            
+```
+
+```{r}
+#means <- c(mean(USA_numeric_values)/3.78541,mean(Britain_numeric_values)/3.78541,mean(Europe_numeric_values)/3.78541,mean(Canada_numeric_values)/3.78541,mean(South_Africa_numeric_values)/3.78541)
+df_means_of_currency <- data.frame(USA = 1.9347,
+                 Britain = 3.7964 * 1.27,
+                 Europe =  1.6849 * 1.09,
+                 Canada = 1.74606 * 0.74,
+                 South_Africa = 18.7827 * 0.053)
+
+df_means_of_currency
+barplot(as.matrix(df_means_of_currency),names.arg = names(df_means_of_currency),col = "blue", xlab = "Countries", ylab = "Gas Prices in $", main = "Gas Prices in Jan 2022 across the most used currencies in the data") 
+
+
+```
+
+### 3(c) Determine which country has the highest average distance
+
+```{r}
+log_book_data_v5 <- merge(log_book_data_v5,currency_data,by = "currency_code")
+log_book_data_v5
+```
+
+### United States has the highest average distance as the data is majorly Americans and have the highest share of vehicles.
+
+```{r}
+head(log_book_data_v5 %>% group_by(Country, vehicle_info) %>% summarise(total_distance = sum(odometer)) %>% group_by(Country) %>% summarise(average_distance = mean(total_distance)) %>% arrange(desc(average_distance)))
+
+```
+
+### 3.d) Do newer vehicles drive longer distances between fill-ups? Justify your answer
+
+```{r}
+#install.packages("tidyverse")
+library(stringr)
+extracted_value <- str_match(log_book_data_v5$user_url, "/(\\d+)$")[,2]
+extracted_value[1:10]
+
+```
+
+```{r}
+#extracted_value_date_vehicle <- str_match(log_book_data_v5$user_url, "\\d{4}")
+extracted_value_date_vehicle <- str_extract(log_book_data_v5$user_url, "\\d{4}(?=/[^/]*$)")
+extracted_value_date_vehicle[1:10]
+
+```
+
+```{r}
+log_book_data_v5$user_id <- extracted_value
+log_book_data_v5$vehicle_date <- extracted_value_date_vehicle
+log_book_data_v5
+```
+
+```{r}
+
+group_by_fillup <- log_book_data_v5 %>% group_by(user_id) %>% arrange(date_fueled)
+group_by_fillup <- group_by_fillup %>% filter(date_fueled >= '1969-12-31')
+group_by_fillup <- group_by_fillup[group_by_fillup$mpg > 0,]
+group_by_fillup <- group_by_fillup[!is.na(group_by_fillup$vehicle_date),]
+group_by_fillup$vehicle_date <- as.numeric(group_by_fillup$vehicle_date) 
+group_by_fillup
+```
+
+```{r}
+new_vehicle_fillup <-group_by_fillup %>% mutate(vehicle_age = as.numeric(format(Sys.Date(), "%Y")) - vehicle_date,distance_between_fillups = odometer - lag(odometer))
+new_vehicle_fillup
+
+```
+
+```{r}
+new_vehicle_fillup <- new_vehicle_fillup[!is.na(new_vehicle_fillup$distance_between_fillups),]
+new_vehicle_fillup <- new_vehicle_fillup[new_vehicle_fillup$distance_between_fillups > 0,]
+new_vehicle_fillup
+```
+
+### It's uncertain that newer vehicles provide more fillup in between. It's about the way the car model has been designed and how the owner of the car maintains it in the long run as shown below
+
+```{r}
+mean_new_vehicle_fillup <- new_vehicle_fillup %>% group_by(vehicle_age,vehicle_info) %>% summarise(mean_distance_between_fillups = mean(distance_between_fillups, na.rm = TRUE)) %>% arrange(desc(mean_distance_between_fillups))
+head(mean_new_vehicle_fillup)
+```
+
+## 3.e) Compute the fuel efficiency of the 5 most popular vehicles in SA, and explain whether the values are
+
+```{r}
+South_Africa = group_by_fillup[group_by_fillup$Country == "South Africa",]
+South_Africa_mpg <- South_Africa %>% group_by(vehicle_info) %>% count() %>% arrange(desc(n))
+South_Africa_mpg <- South_Africa_mpg[1:5,]
+
+South_Africa_mpg
+
+```
+
+```{r}
+South_Africa_mpg1 <- South_Africa[(South_Africa$vehicle_info == "toyota hilux")| (South_Africa$vehicle_info == "toyota fortuner") | (South_Africa$vehicle_info == "mitsubishi pajero") |(South_Africa$vehicle_info == "ford ranger") | (South_Africa$vehicle_info == "volkswagen polo"), c("mpg","vehicle_info")]
+
+```
+
+## Since there are 3479 vehicles in the data, we can say it is realistic as 22865 South African Vehicles are extracted and accounts 15% of South Africa in the dataset.
+
+```{r}
+South_Africa_mpg1 <-  South_Africa_mpg1 %>% group_by(vehicle_info) %>% summarise(Mean_of_mpgs = mean(mpg))
+South_Africa_mpg <- merge(South_Africa_mpg,South_Africa_mpg1,by = "vehicle_info")
+South_Africa_mpg %>% arrange(desc(n))
+
+```
+
+```{r}
+sum(South_Africa_mpg$n)
+
+```
+
+## 3.f)
+
+## Correlations do not make sense as mpg seems to solely related to miles, distance_between_fileups. We do not account weather, country, the quality of fuel. As there are too little factors to take into account
+
+```{r}
+cor(y = new_vehicle_fillup$mpg, x = new_vehicle_fillup[c("miles","gallons","odometer","vehicle_age","distance_between_fillups")],method = "pearson")
+```
+
+## 4 a.) What observations can be made regarding the change in fuel prices over time for South Africa?
+
+```{r}
+South_Africa <- South_Africa %>% group_by(date_fueled) %>% arrange((date_fueled))
+South_Africa
+```
+
+```{r}
+#date_fueled_years <- as.numeric(format(South_Africa$date_fueled,"%Y"))
+date_fueled_years <- South_Africa$date_fueled
+```
+
+```{r}
+library(ggplot2)
+
+South_African_cpg <- gsub("R","",South_Africa$cost_per_gallon)
+South_African_cpg <- gsub(",","",South_African_cpg)
+South_African_cpg <- as.numeric(South_African_cpg)
+
+
+```
+
+```{r}
+
+fuel_data <- data.frame(date_fueled_years = date_fueled_years, South_African_cpg = South_African_cpg)
+
+ggplot(fuel_data, aes(x = date_fueled_years, y = South_African_cpg)) +
+  geom_line() +
+  labs(x = "Year", y = "Cost per Gallon", title = "Fuel Prices Over Time in South Africa")
+
+```
+
+## Removing outliers
+
+```{r}
+
+Q1 = summary(South_African_cpg)[2]
+Q3 = summary(South_African_cpg)[5]
+print(paste("Q1 is ",Q1))
+print(paste("Q3 is ",Q3))
+IQR = Q3 - Q1
+print(paste("IQR ",IQR))
+LB = Q1 - 1.5 * IQR
+UB = Q3 + 1.5 * IQR
+print(paste("LB is ",LB))
+print(paste("UB is ",UB))
+```
+
+Q1 - 1.5 \* IQR
+
+```{r}
+non_outlier_fuel_data <- fuel_data[fuel_data$South_African_cpg >= LB & fuel_data$South_African_cpg <= UB, ]
+```
+
+## 4.b) In South Africa, the price of fuel always changes at midnight on the first Tuesday of the month.
+
+### Examine the trends of users filling up each day of the week
+
+```{r}
+ggplot(non_outlier_fuel_data , aes(x = date_fueled_years, y = South_African_cpg)) +
+  geom_line() +
+  labs(x = "Year", y = "Cost per Gallon in South African Rand", title = "Fuel Prices Over Time in South Africa")
+
+```
+
+```{r}
+non_outlier_fuel_data <- non_outlier_fuel_data %>% mutate(day_of_week = weekdays((date_fueled_years)))
+non_outlier_fuel_data
+```
+
+## 4.c) Show the difference in the amount of people refueling on a Tuesday vs other In of the week
+
+```{r}
+fillups_by_day <- non_outlier_fuel_data %>%
+  group_by(day_of_week) %>%
+  summarise(fillups = n())
+ggplot(fillups_by_day, aes(x = day_of_week, y = fillups)) +
+  geom_bar(stat = "identity", fill = "red") +
+  labs(x = "Day of the Week", y = "Number of Fill-ups", title = "Fill-up Trends by Day of the Week")
+```
+
+```{r}
+fillups_difference <- fillups_by_day %>%
+  mutate(diff_from_tuesday = ifelse(day_of_week == "Tuesday", fillups - mean(fillups), fillups))
+fillups_difference
+```
+
+```{r}
+ggplot(fillups_difference %>% filter(day_of_week != "Tuesday"), aes(x = day_of_week, y = diff_from_tuesday)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(x = "Day of the Week", y = "Difference in Fill-ups", title = "Difference in Fill-ups (Excluding Tuesday)")
+```
+
+## 4.d) For the year 2020, show whether the fuel price went up or down each month
+
+```{r}
+library(lubridate)
+fuel_data_2020 <- non_outlier_fuel_data %>%
+  filter(year(date_fueled_years) == 2020)
+
+fuel_prices_monthly <- fuel_data_2020 %>%
+  mutate(month_name = month(date_fueled_years, label = TRUE)) %>%
+  group_by(month_name) %>%
+  summarise(avg_fuel_price = mean(South_African_cpg, na.rm = TRUE))
+
+```
+
+```{r}
+fuel_prices_monthly <- fuel_prices_monthly %>%
+  mutate(price_change = ifelse(avg_fuel_price - lag(avg_fuel_price) > 0, "Up", "Down"))
+
+ggplot(fuel_prices_monthly, aes(x = month_name, y = avg_fuel_price, group = 1)) +
+  geom_line(color = "blue") +
+  geom_point(color = "blue") +
+  geom_text(aes(label = price_change), vjust = -1, color = "red", na.rm = TRUE) +  # Add na.rm = TRUE to handle missing values
+  labs(x = "Month", y = "Average Fuel Price", title = "Monthly Average Fuel Prices in 2020 with Price Change Indications") +
+  scale_x_discrete(labels = month.name)  # Convert numeric month values to month names
+```
+
+## Question 2.1
+
+### Vehicle Info,currency_codes,Countries,day_of_the_week,Name of the Currency
